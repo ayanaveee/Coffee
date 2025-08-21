@@ -1,59 +1,94 @@
 from django.db import models
-#from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model
 
-#User = get_user_model()
+User = get_user_model()
 
 
 class Category(models.Model):
-    title = models.CharField(max_length=100)
+    title = models.CharField("Название категории", max_length=100)
+
+    class Meta:
+        verbose_name = "Категория"
+        verbose_name_plural = "Категории"
+        ordering = ["title"]
 
     def __str__(self):
         return self.title
 
 
 class Product(models.Model):
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="products")
-    title = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    cover = models.ImageField(upload_to="product_cover/", blank=True, null=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    new_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # скидка
-    rating = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
+    category = models.ForeignKey(
+        Category, on_delete=models.CASCADE, related_name="products", verbose_name="Категория"
+    )
+    title = models.CharField("Название", max_length=200)
+    description = models.TextField("Описание", blank=True)
+    cover = models.ImageField("Обложка", upload_to="product_cover/", blank=True, null=True)
+    price = models.DecimalField("Цена", max_digits=10, decimal_places=2)
+    new_price = models.DecimalField("Цена со скидкой", max_digits=10, decimal_places=2, null=True, blank=True)
+    rating = models.DecimalField("Рейтинг", max_digits=3, decimal_places=1, default=0.0)
+
+    class Meta:
+        verbose_name = "Товар"
+        verbose_name_plural = "Товары"
+        ordering = ["title"]
 
     def __str__(self):
         return self.title
 
+    def get_price(self):
+        """Возвращает цену со скидкой, если она есть."""
+        return self.new_price or self.price
+
 
 class Banner(models.Model):
     LOCATION_CHOICES = [
-        ("index_head", "Index Head"),
-        ("index_middle", "Index Middle"),
+        ("index_head", "Баннер сверху"),
+        ("index_middle", "Дополнительный баннер"),
     ]
-    title = models.CharField(max_length=255)
-    image = models.ImageField(upload_to="banners/")
-    location = models.CharField(max_length=50, choices=LOCATION_CHOICES)
+    title = models.CharField("Заголовок", max_length=255)
+    image = models.ImageField("Изображение", upload_to="banners/")
+    location = models.CharField("Расположение", max_length=50, choices=LOCATION_CHOICES)
+
+    class Meta:
+        verbose_name = "Баннер"
+        verbose_name_plural = "Баннеры"
+        ordering = ["location"]
 
     def __str__(self):
         return f"{self.title} ({self.location})"
 
 
 class Basket(models.Model):
-    #user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="basket")
-    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="basket")
+    total_price = models.DecimalField("Общая сумма", max_digits=10, decimal_places=2, default=0.00)
+
+    class Meta:
+        verbose_name = "Корзина"
+        verbose_name_plural = "Корзины"
 
     def update_total(self):
         total = sum(item.get_subtotal() for item in self.items.all())
         self.total_price = total
         self.save()
 
+    def __str__(self):
+        return f"Корзина #{self.pk} - {self.total_price} сом"
+
 
 class BasketItems(models.Model):
-    basket = models.ForeignKey(Basket, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(default=1)
+    basket = models.ForeignKey(Basket, on_delete=models.CASCADE, related_name="items", verbose_name="Корзина")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Товар")
+    quantity = models.PositiveIntegerField("Количество", default=1)
+
+    class Meta:
+        verbose_name = "Товар в корзине"
+        verbose_name_plural = "Товары в корзине"
 
     def get_subtotal(self):
-        return (self.product.new_price or self.product.price) * self.quantity
+        return self.product.get_price() * self.quantity
+
+    def __str__(self):
+        return f"{self.product.title} × {self.quantity}"
 
 
 class Order(models.Model):
@@ -63,16 +98,122 @@ class Order(models.Model):
         ("В обработке", "В обработке"),
         ("Доставлен", "Доставлен"),
     ]
-    #user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders")
-    total_price = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Создан")
-    created_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders")
+    total_price = models.DecimalField("Общая сумма", max_digits=10, decimal_places=2)
+    status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default="Создан")
+    created_at = models.DateTimeField("Дата создания", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Заказ"
+        verbose_name_plural = "Заказы"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Заказ #{self.pk} - {self.status}"
+
+    def update_total(self):
+        total = sum(item.get_subtotal() for item in self.items.all())
+        self.total_price = total
+        self.save()
 
 
 class OrderItems(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(default=1)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items", verbose_name="Заказ")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Товар")
+    quantity = models.PositiveIntegerField("Количество", default=1)
+
+    class Meta:
+        verbose_name = "Товар в заказе"
+        verbose_name_plural = "Товары в заказе"
 
     def get_subtotal(self):
-        return (self.product.new_price or self.product.price) * self.quantity
+        return self.product.get_price() * self.quantity
+
+    def __str__(self):
+        return f"{self.product.title} × {self.quantity}"
+
+# ---------------- PROMOTIONS ----------------
+class Promotion(models.Model):
+    title = models.CharField("Название акции", max_length=200)
+    description = models.TextField("Описание", blank=True)
+    discount_percent = models.PositiveIntegerField("Скидка %")
+    start_date = models.DateField("Начало")
+    end_date = models.DateField("Конец")
+    products = models.ManyToManyField(Product, verbose_name="Товары в акции", blank=True)
+
+    class Meta:
+        verbose_name = "Акция"
+        verbose_name_plural = "Акции"
+
+    def __str__(self):
+        return f"{self.title} ({self.discount_percent}%)"
+
+
+# ---------------- REVIEWS ----------------
+class Review(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews")
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    rating = models.PositiveSmallIntegerField("Оценка (1-5)", default=5)
+    comment = models.TextField("Комментарий", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Отзыв"
+        verbose_name_plural = "Отзывы"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.product.title} - {self.rating}⭐"
+
+
+# ---------------- INGREDIENTS ----------------
+class Ingredient(models.Model):
+    name = models.CharField("Название", max_length=100)
+    is_allergen = models.BooleanField("Аллерген", default=False)
+
+    class Meta:
+        verbose_name = "Ингредиент"
+        verbose_name_plural = "Ингредиенты"
+
+    def __str__(self):
+        return self.name
+
+
+class ProductIngredient(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="ingredients")
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
+    amount = models.CharField("Количество", max_length=50, blank=True)
+
+    class Meta:
+        verbose_name = "Ингредиент в продукте"
+        verbose_name_plural = "Ингредиенты в продуктах"
+
+    def __str__(self):
+        return f"{self.ingredient.name} для {self.product.title}"
+
+
+# ---------------- STOCK ----------------
+class Stock(models.Model):
+    product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name="stock")
+    quantity = models.PositiveIntegerField("Количество на складе", default=0)
+
+    class Meta:
+        verbose_name = "Склад"
+        verbose_name_plural = "Складские остатки"
+
+    def __str__(self):
+        return f"{self.product.title} - {self.quantity} шт."
+
+
+# ---------------- PICKUP POINTS ----------------
+class PickupPoint(models.Model):
+    name = models.CharField("Название точки", max_length=200)
+    address = models.CharField("Адрес", max_length=255)
+    phone = models.CharField("Телефон", max_length=20, blank=True)
+
+    class Meta:
+        verbose_name = "Точка самовывоза"
+        verbose_name_plural = "Точки самовывоза"
+
+    def __str__(self):
+        return self.name

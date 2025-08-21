@@ -79,3 +79,21 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ["id", "total_price", "status", "created_at", "items"]
+
+
+class OrderItemsNestedSerializer(serializers.ModelSerializer):
+    subtotal = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrderItems
+        fields = ("product", "quantity", "subtotal")
+
+    def get_subtotal(self, obj):
+        return (obj.product.new_price or obj.product.price) * obj.quantity
+
+class OrderNestedSerializer(serializers.ModelSerializer):
+    items = OrderItemsNestedSerializer(many=True, read_only=True, source="orderitems_set")
+
+    class Meta:
+        model = Order
+        fields = ("id", "total_price", "status", "created_at", "items")

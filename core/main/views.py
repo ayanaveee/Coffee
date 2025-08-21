@@ -1,42 +1,104 @@
-from rest_framework import status, permissions
-from rest_framework.views import APIView
+from rest_framework import generics, permissions, serializers
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
-from .models import Basket, BasketItems, Product, Order, OrderItems
+from django_filters.rest_framework import DjangoFilterBackend
+from .filters import ProductFilter
+from .models import (
+    Basket, BasketItems, Product, Order, OrderItems, Category, Banner
+)
 from .serializers import (
     BasketItemsCreateSerializer,
     BasketItemsSerializer,
     OrderSerializer,
     CheckoutSerializer,
+    ProductListSerializer,
+    CategorySerializer,
+    OrderNestedSerializer,
+    BannerListSerializer,
 )
 
+# -------------------- Pagination --------------------
+class ProductPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 50
 
-class BasketItemsCreateView(APIView):
+# -------------------- Index API --------------------
+class IndexAPIView(generics.GenericAPIView):
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ProductFilter
+    pagination_class = ProductPagination
+
+    def get(self, request):
+        top_banner = Banner.objects.filter(location="index_head")
+        middle_banner = Banner.objects.filter(location="index_middle")
+
+        categories = Category.objects.all()[:3]
+        categories_data = CategorySerializer(categories, many=True).data
+
+        products_qs = Product.objects.all()
+        filtered_products = self.filter_queryset(products_qs)
+        paginated_products = self.paginate_queryset(filtered_products)
+        products_data = ProductListSerializer(paginated_products, many=True).data
+
+        return Response({
+            "top_banner": BannerListSerializer(top_banner, many=True).data if top_banner else None,
+            "middle_banner": BannerListSerializer(middle_banner, many=True).data if middle_banner else None,
+            "categories": categories_data,
+            "products": products_data,
+            "pagination": self.get_paginated_response(products_data).data if paginated_products else None
+        })
+
+
+# -------------------- Basket Items --------------------
+class BasketItemsCreateView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = BasketItemsCreateSerializer
 
-    def post(self, request):
-        serializer = BasketItemsCreateSerializer(data=request.data, context={"request": request})
-        if serializer.is_valid():
-            basket_item = serializer.save()
-            return Response(BasketItemsSerializer(basket_item).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_serializer_context(self):
+        return {"request": self.request}
 
+    def perform_create(self, serializer):
+        basket, _ = Basket.objects.get_or_create(user=self.request.user)
+        product = serializer.validated_data["product"]
+        quantity = serializer.validated_data["quantity"]
 
-class CheckoutAPIView(APIView):
+        basket_item, created = BasketItems.objects.get_or_create(
+            basket=basket, product=product,
+            defaults={"quantity": quantity}
+        )
+        if not created:
+            basket_item.quantity += quantity
+            basket_item.save()
+
+        basket.update_total()
+
+class BasketItemsListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = BasketItemsSerializer
+
+    def get_queryset(self):
+        basket, _ = Basket.objects.get_or_create(user=self.request.user)
+        return basket.items.all()
+
+# -------------------- Checkout --------------------
+class CheckoutAPIView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = CheckoutSerializer
 
     def post(self, request, *args, **kwargs):
-        serializer = CheckoutSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         basket_id = serializer.validated_data["basket_id"]
         basket = get_object_or_404(Basket, id=basket_id, user=request.user)
 
-        order = Order.objects.create(
-            user=request.user,
-            total_price=basket.total_price,
-            status="Создан"
-        )
+        if not basket.items.exists():
+            return Response({"detail": "Корзина пуста."}, status=400)
+
+        total = sum((item.product.new_price or item.product.price) * item.quantity for item in basket.items.all())
+        order = Order.objects.create(user=request.user, total_price=total, status="Создан")
 
         for item in basket.items.all():
             OrderItems.objects.create(
@@ -48,22 +110,21 @@ class CheckoutAPIView(APIView):
         basket.items.all().delete()
         basket.update_total()
 
-        return Response({"detail": f"Заказ #{order.id} создан успешно."}, status=status.HTTP_201_CREATED)
+        return Response({"detail": f"Заказ #{order.id} создан успешно."}, status=201)
 
 
-class OrderListAPIView(APIView):
+# -------------------- Orders --------------------
+class OrderListAPIView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = OrderNestedSerializer
 
-    def get(self, request):
-        orders = Order.objects.filter(user=request.user).order_by("-created_at")
-        serializer = OrderSerializer(orders, many=True)
-        return Response(serializer.data)
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user).order_by("-created_at")
 
-
-class OrderDetailAPIView(APIView):
+class OrderDetailAPIView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = OrderNestedSerializer
+    lookup_field = "id"
 
-    def get(self, request, id):
-        order = get_object_or_404(Order, id=id, user=request.user)
-        serializer = OrderSerializer(order)
-        return Response(serializer.data)
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user)
