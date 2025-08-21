@@ -2,12 +2,10 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db.models import TextChoices
 
-# ---------------- Роли пользователей ----------------
 class MyUserRoleEnum(TextChoices):
     STANDARD_USER = 'standard_user', 'Обычный пользователь'
     MANAGER = 'admin', 'Админ'
 
-# ---------------- Менеджер пользователей ----------------
 class MyUserManager(BaseUserManager):
     def create_user(self, username, email, password=None, role=MyUserRoleEnum.STANDARD_USER):
         user = self.model(username=username, email=email, role=role)
@@ -22,7 +20,6 @@ class MyUserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-# ---------------- Модель пользователя ----------------
 class User(AbstractBaseUser):
     username = models.CharField(max_length=30, verbose_name='Имя пользователя')
     email = models.EmailField(unique=True, verbose_name='Почта')
