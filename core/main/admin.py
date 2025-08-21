@@ -31,7 +31,7 @@ class BannerAdmin(admin.ModelAdmin):
     list_display = ("id", "title", "location", "image")
     search_fields = ("title",)
     list_filter = ("location",)
-    ordering = ("id",)  # вместо -created_at
+    ordering = ("id",)
 
 # ---------------- BASKET ----------------
 @admin.register(Basket)
