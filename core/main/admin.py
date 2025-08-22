@@ -1,9 +1,5 @@
 from django.contrib import admin
-from .models import (
-    Category, Product, Banner, Basket, BasketItems,
-    Order, OrderItems, Promotion, Review,
-    Ingredient, ProductIngredient, Stock, PickupPoint
-)
+from .models import *
 
 # ---------------- CATEGORY ----------------
 @admin.register(Category)
@@ -84,9 +80,9 @@ class ReviewAdmin(admin.ModelAdmin):
 # ---------------- INGREDIENTS ----------------
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "is_allergen")
+    list_display = ("id", "title", "is_allergen")
     list_filter = ("is_allergen",)
-    search_fields = ("name",)
+    search_fields = ("title",)
     ordering = ("id",)
 
 @admin.register(ProductIngredient)
@@ -105,6 +101,6 @@ class StockAdmin(admin.ModelAdmin):
 # ---------------- PICKUP POINTS ----------------
 @admin.register(PickupPoint)
 class PickupPointAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "address", "phone")
-    search_fields = ("name", "address")
+    list_display = ("id", "title", "address", "phone")
+    search_fields = ("title", "address")
     ordering = ("id",)

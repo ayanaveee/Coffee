@@ -1,9 +1,11 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+import secrets
+import string
 
 User = get_user_model()
 
-
+# ---------------- КАТЕГОРИЯ ----------------
 class Category(models.Model):
     title = models.CharField("Название категории", max_length=100)
 
@@ -16,6 +18,7 @@ class Category(models.Model):
         return self.title
 
 
+# ---------------- ТОВАР ----------------
 class Product(models.Model):
     category = models.ForeignKey(
         Category, on_delete=models.CASCADE, related_name="products", verbose_name="Категория"
@@ -36,10 +39,10 @@ class Product(models.Model):
         return self.title
 
     def get_price(self):
-        """Возвращает цену со скидкой, если она есть."""
         return self.new_price or self.price
 
 
+# ---------------- БАННЕР ----------------
 class Banner(models.Model):
     LOCATION_CHOICES = [
         ("index_head", "Баннер сверху"),
@@ -58,6 +61,7 @@ class Banner(models.Model):
         return f"{self.title} ({self.location})"
 
 
+# ---------------- КОРЗИНА ----------------
 class Basket(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="basket")
     total_price = models.DecimalField("Общая сумма", max_digits=10, decimal_places=2, default=0.00)
@@ -91,6 +95,7 @@ class BasketItems(models.Model):
         return f"{self.product.title} × {self.quantity}"
 
 
+# ---------------- ЗАКАЗ ----------------
 class Order(models.Model):
     STATUS_CHOICES = [
         ("Создан", "Создан"),
@@ -102,6 +107,20 @@ class Order(models.Model):
     total_price = models.DecimalField("Общая сумма", max_digits=10, decimal_places=2)
     status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default="Создан")
     created_at = models.DateTimeField("Дата создания", auto_now_add=True)
+
+    transaction_id = models.CharField("ID транзакции", max_length=20, unique=True, null=True, blank=True, editable=False)
+    payment_method = models.CharField("Метод оплаты", max_length=30, null=True, blank=True)
+    voucher_amount = models.DecimalField("Скидка", max_digits=10, decimal_places=2, default=0)
+    pickup_at = models.DateTimeField("Время самовывоза", null=True, blank=True)
+
+    def ensure_transaction_id(self):
+        if not self.transaction_id:
+            alphabet = string.ascii_uppercase + string.digits
+            self.transaction_id = "D" + ''.join(secrets.choice(alphabet) for _ in range(12))
+
+    def save(self, *args, **kwargs):
+        self.ensure_transaction_id()
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Заказ"
@@ -132,7 +151,8 @@ class OrderItems(models.Model):
     def __str__(self):
         return f"{self.product.title} × {self.quantity}"
 
-# ---------------- PROMOTIONS ----------------
+
+# ---------------- АКЦИИ ----------------
 class Promotion(models.Model):
     title = models.CharField("Название акции", max_length=200)
     description = models.TextField("Описание", blank=True)
@@ -149,10 +169,10 @@ class Promotion(models.Model):
         return f"{self.title} ({self.discount_percent}%)"
 
 
-# ---------------- REVIEWS ----------------
+# ---------------- ОТЗЫВЫ ----------------
 class Review(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews")
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviews")
     rating = models.PositiveSmallIntegerField("Оценка (1-5)", default=5)
     comment = models.TextField("Комментарий", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -166,9 +186,9 @@ class Review(models.Model):
         return f"{self.product.title} - {self.rating}⭐"
 
 
-# ---------------- INGREDIENTS ----------------
+# ---------------- ИНГРЕДИЕНТЫ ----------------
 class Ingredient(models.Model):
-    name = models.CharField("Название", max_length=100)
+    title = models.CharField("Название", max_length=100)
     is_allergen = models.BooleanField("Аллерген", default=False)
 
     class Meta:
@@ -176,7 +196,7 @@ class Ingredient(models.Model):
         verbose_name_plural = "Ингредиенты"
 
     def __str__(self):
-        return self.name
+        return self.title
 
 
 class ProductIngredient(models.Model):
@@ -189,10 +209,10 @@ class ProductIngredient(models.Model):
         verbose_name_plural = "Ингредиенты в продуктах"
 
     def __str__(self):
-        return f"{self.ingredient.name} для {self.product.title}"
+        return f"{self.ingredient.title} для {self.product.title}"
 
 
-# ---------------- STOCK ----------------
+# ---------------- СКЛАД ----------------
 class Stock(models.Model):
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name="stock")
     quantity = models.PositiveIntegerField("Количество на складе", default=0)
@@ -205,9 +225,9 @@ class Stock(models.Model):
         return f"{self.product.title} - {self.quantity} шт."
 
 
-# ---------------- PICKUP POINTS ----------------
+# ---------------- ТОЧКИ САМОВЫВОЗА ----------------
 class PickupPoint(models.Model):
-    name = models.CharField("Название точки", max_length=200)
+    title = models.CharField("Название точки", max_length=200)
     address = models.CharField("Адрес", max_length=255)
     phone = models.CharField("Телефон", max_length=20, blank=True)
 
@@ -216,4 +236,18 @@ class PickupPoint(models.Model):
         verbose_name_plural = "Точки самовывоза"
 
     def __str__(self):
-        return self.name
+        return self.title
+
+# ---------------- ТОЧКИ САМОВЫВОЗА ----------------
+class PickupPoint(models.Model):
+    title = models.CharField("Название точки", max_length=200)
+    address = models.CharField("Адрес", max_length=255)
+    phone = models.CharField("Телефон", max_length=20, blank=True)
+
+    class Meta:
+        verbose_name = "Точка самовывоза"
+        verbose_name_plural = "Точки самовывоза"
+
+    def __str__(self):
+        return self.title
+

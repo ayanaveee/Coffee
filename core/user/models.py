@@ -7,8 +7,8 @@ class MyUserRoleEnum(TextChoices):
     MANAGER = 'admin', 'Админ'
 
 class MyUserManager(BaseUserManager):
-    def create_user(self, username, email, password=None, role=MyUserRoleEnum.STANDARD_USER):
-        user = self.model(username=username, email=email, role=role)
+    def create_user(self, username, email, password=None, role=MyUserRoleEnum.STANDARD_USER, **extra_fields):
+        user = self.model(username=username, email=email, role=role, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
@@ -26,6 +26,9 @@ class User(AbstractBaseUser):
     phone_number = models.CharField(max_length=15, null=True, blank=True, verbose_name='Номер телефона')
     avatar = models.ImageField(upload_to='media/user_avatar/', null=True, blank=True, verbose_name='Аватарка')
     address = models.CharField(max_length=150, null=True, blank=True, verbose_name='Адрес')
+    first_name = models.CharField(max_length=30, null=True, blank=True, verbose_name='Имя')
+    last_name = models.CharField(max_length=30, null=True, blank=True, verbose_name='Фамилия')
+    is_2fa_enabled = models.BooleanField(default=False, verbose_name="Двухфакторка")
     is_admin = models.BooleanField(default=False, verbose_name='Админ')
     role = models.CharField(
         max_length=20,
@@ -38,6 +41,7 @@ class User(AbstractBaseUser):
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
+
 
     def __str__(self):
         return f'{self.email}'

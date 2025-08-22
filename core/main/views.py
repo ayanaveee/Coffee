@@ -1,30 +1,23 @@
-from rest_framework import generics, permissions, serializers
+from rest_framework import generics, permissions, status
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import ProductFilter
-from .models import (
-    Basket, BasketItems, Product, Order, OrderItems, Category, Banner
-)
-from .serializers import (
-    BasketItemsCreateSerializer,
-    BasketItemsSerializer,
-    OrderSerializer,
-    CheckoutSerializer,
-    ProductListSerializer,
-    CategorySerializer,
-    OrderNestedSerializer,
-    BannerListSerializer,
-)
+from .models import *
+from .serializers import *
 
-# -------------------- Pagination --------------------
+
 class ProductPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = "page_size"
     max_page_size = 50
 
-# -------------------- Index API --------------------
+
 class IndexAPIView(generics.GenericAPIView):
     filter_backends = [DjangoFilterBackend]
     filterset_class = ProductFilter
@@ -32,28 +25,39 @@ class IndexAPIView(generics.GenericAPIView):
 
     def get(self, request):
         top_banner = Banner.objects.filter(location="index_head")
-        middle_banner = Banner.objects.filter(location="index_middle")
-
         categories = Category.objects.all()[:3]
         categories_data = CategorySerializer(categories, many=True).data
 
         products_qs = Product.objects.all()
         filtered_products = self.filter_queryset(products_qs)
-        paginated_products = self.paginate_queryset(filtered_products)
-        products_data = ProductListSerializer(paginated_products, many=True).data
+        paginated = self.paginate_queryset(filtered_products)
+        products_data = ProductListSerializer(paginated, many=True).data
 
         return Response({
             "top_banner": BannerListSerializer(top_banner, many=True).data if top_banner else None,
-            "middle_banner": BannerListSerializer(middle_banner, many=True).data if middle_banner else None,
             "categories": categories_data,
             "products": products_data,
-            "pagination": self.get_paginated_response(products_data).data if paginated_products else None
+            "pagination": self.get_paginated_response(products_data).data if paginated else None
         })
 
 
-# -------------------- Basket Items --------------------
+class ProductListAPIView(generics.ListAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductListSerializer
+    permission_classes = [permissions.AllowAny]
+    filterset_class = ProductFilter
+    search_fields = ['title', 'description']
+    ordering_fields = ['price', 'title', 'id']
+
+
+class ProductDetailAPIView(generics.RetrieveAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductDetailSerializer
+    permission_classes = [permissions.AllowAny]
+
+
 class BasketItemsCreateView(generics.CreateAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     serializer_class = BasketItemsCreateSerializer
 
     def get_serializer_context(self):
@@ -64,36 +68,44 @@ class BasketItemsCreateView(generics.CreateAPIView):
         product = serializer.validated_data["product"]
         quantity = serializer.validated_data["quantity"]
 
-        basket_item, created = BasketItems.objects.get_or_create(
+        item, created = BasketItems.objects.get_or_create(
             basket=basket, product=product,
             defaults={"quantity": quantity}
         )
         if not created:
-            basket_item.quantity += quantity
-            basket_item.save()
+            item.quantity += quantity
+            item.save()
 
         basket.update_total()
 
+
 class BasketItemsListView(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     serializer_class = BasketItemsSerializer
 
     def get_queryset(self):
         basket, _ = Basket.objects.get_or_create(user=self.request.user)
         return basket.items.all()
 
-# -------------------- Checkout --------------------
+
+class BasketItemDeleteView(generics.DestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = BasketItemsSerializer
+
+    def get_queryset(self):
+        basket, _ = Basket.objects.get_or_create(user=self.request.user)
+        return basket.items.all()
+
+
 class CheckoutAPIView(generics.GenericAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     serializer_class = CheckoutSerializer
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        basket_id = serializer.validated_data["basket_id"]
-        basket = get_object_or_404(Basket, id=basket_id, user=request.user)
-
+        basket = get_object_or_404(Basket, id=serializer.validated_data["basket_id"], user=request.user)
         if not basket.items.exists():
             return Response({"detail": "Корзина пуста."}, status=400)
 
@@ -101,11 +113,7 @@ class CheckoutAPIView(generics.GenericAPIView):
         order = Order.objects.create(user=request.user, total_price=total, status="Создан")
 
         for item in basket.items.all():
-            OrderItems.objects.create(
-                order=order,
-                product=item.product,
-                quantity=item.quantity
-            )
+            OrderItems.objects.create(order=order, product=item.product, quantity=item.quantity)
 
         basket.items.all().delete()
         basket.update_total()
@@ -113,18 +121,93 @@ class CheckoutAPIView(generics.GenericAPIView):
         return Response({"detail": f"Заказ #{order.id} создан успешно."}, status=201)
 
 
-# -------------------- Orders --------------------
 class OrderListAPIView(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     serializer_class = OrderNestedSerializer
 
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user).order_by("-created_at")
 
+
 class OrderDetailAPIView(generics.RetrieveAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     serializer_class = OrderNestedSerializer
     lookup_field = "id"
 
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user)
+
+
+class PayOrderAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, id):
+        order = get_object_or_404(Order, id=id, user=request.user)
+
+        if order.status == "paid":
+            return Response({"detail": "Заказ уже оплачен"}, status=status.HTTP_200_OK)
+
+        payment_method = request.data.get("payment_method")
+        voucher_amount = request.data.get("voucher_amount", 0)
+        pickup_at_raw = request.data.get("pickup_at")
+
+        try:
+            voucher_amount = float(voucher_amount or 0)
+        except ValueError:
+            return Response({"voucher_amount": "Должно быть числом"}, status=400)
+
+        pickup_at = None
+        if pickup_at_raw:
+            pickup_at = parse_datetime(pickup_at_raw)
+            if pickup_at is None:
+                return Response({"pickup_at": "Формат должен быть ISO-8601"}, status=400)
+
+        order.payment_method = payment_method or order.payment_method or "Card"
+        order.voucher_amount = voucher_amount
+        order.pickup_at = pickup_at or order.pickup_at
+        order.status = "paid"
+        order.save()
+
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+
+
+class OrderReceiptAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+        order = get_object_or_404(Order, id=id, user=request.user)
+
+        created = timezone.localtime(order.created_at)
+        items = []
+        subtotal = 0
+
+        for item in order.items.select_related("product"):
+            price = item.product.new_price or item.product.price
+            total = float(price) * item.quantity
+            subtotal += total
+            items.append({
+                "title": item.product.title,
+                "quantity": item.quantity,
+                "price": float(price),
+                "line_total": total,
+                "options": []
+            })
+
+        receipt = {
+            "success": order.status == "paid",
+            "title": "Thank you!",
+            "message": "Your transaction was successful" if order.status == "paid" else "Waiting for payment",
+            "transaction_id": order.transaction_id,
+            "date": created.strftime("%d %B %y"),
+            "time": created.strftime("%I:%M %p"),
+            "items": items,
+            "payment_summary": {
+                "price": round(subtotal, 2),
+                "voucher": float(order.voucher_amount or 0),
+                "total": float(order.total_price)
+            },
+            "payment_method": order.payment_method or "Card",
+            "schedule_pickup": order.pickup_at.strftime("%I.%M %p") if order.pickup_at else None
+        }
+
+        return Response(receipt)
