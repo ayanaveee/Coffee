@@ -2,14 +2,14 @@ from rest_framework import serializers
 from .models import *
 
 
-# ------------------ Категория ------------------
+#Категория
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ["id", "title"]
 
 
-# ------------------ Товары ------------------
+#Товары
 class ProductListSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
 
@@ -17,7 +17,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         model = Product
         fields = ["id", "title", "price", "new_price", "rating", "cover", "category"]
 
-
+#Детальная страница товаров
 class ProductDetailSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
 
@@ -26,14 +26,14 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-# ------------------ Баннеры ------------------
+#Баннеры
 class BannerListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Banner
         fields = ["id", "title", "image", "location"]
 
 
-# ------------------ Корзина ------------------
+#Корзина
 class BasketItemsSerializer(serializers.ModelSerializer):
     product = ProductListSerializer(read_only=True)
 
@@ -41,7 +41,7 @@ class BasketItemsSerializer(serializers.ModelSerializer):
         model = BasketItems
         fields = ["id", "product", "quantity"]
 
-
+#Создание корзины
 class BasketItemsCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = BasketItems
@@ -69,12 +69,12 @@ class BasketItemsCreateSerializer(serializers.ModelSerializer):
         return basket_item
 
 
-# ------------------ Оформление заказа ------------------
+#Оформление заказа
 class CheckoutSerializer(serializers.Serializer):
     basket_id = serializers.IntegerField()
 
 
-# ------------------ Заказ (детали) ------------------
+#Детали заказа
 class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductListSerializer(read_only=True)
 
@@ -82,7 +82,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         model = OrderItems
         fields = ["id", "product", "quantity"]
 
-
+#
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     transaction_id = serializers.CharField(read_only=True)
@@ -105,7 +105,7 @@ class OrderSerializer(serializers.ModelSerializer):
         ]
 
 
-# ------------------ Заказ (вложенные позиции с суммой) ------------------
+#Заказ (вложенные позиции с суммой)
 class OrderItemsNestedSerializer(serializers.ModelSerializer):
     subtotal = serializers.SerializerMethodField()
 
@@ -118,7 +118,7 @@ class OrderItemsNestedSerializer(serializers.ModelSerializer):
 
 
 class OrderNestedSerializer(serializers.ModelSerializer):
-    items = OrderItemsNestedSerializer(many=True, read_only=True, source="items")
+    items = OrderItemsNestedSerializer(many=True, read_only=True)
 
     class Meta:
         model = Order

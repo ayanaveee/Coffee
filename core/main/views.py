@@ -11,34 +11,52 @@ from .filters import ProductFilter
 from .models import *
 from .serializers import *
 
-
-class ProductPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = "page_size"
-    max_page_size = 50
-
-
+#Главная страница
 class IndexAPIView(generics.GenericAPIView):
     filter_backends = [DjangoFilterBackend]
-    filterset_class = ProductFilter
-    pagination_class = ProductPagination
 
     def get(self, request):
+        # Топ-баннеры
         top_banner = Banner.objects.filter(location="index_head")
-        categories = Category.objects.all()[:3]
+        top_banner_data = BannerListSerializer(top_banner, many=True).data
+
+        # Бестселлеры (топ-5 продуктов)
+        best_sellers = Product.objects.filter(is_best_seller=True)[:5]
+        best_sellers_data = ProductListSerializer(best_sellers, many=True).data
+
+        # Информация о кофейне
+        about_coffee = {
+            "image": "/media/about_coffee.jpg",
+            "text": "Добро пожаловать в нашу кофейню! Здесь варят лучший кофе."
+        }
+
+        # Цитата
+        quote = "Жизнь слишком коротка, чтобы пить плохой кофе ☕️"
+
+        # Категории товаров
+        categories = Category.objects.all()
         categories_data = CategorySerializer(categories, many=True).data
 
-        products_qs = Product.objects.all()
-        filtered_products = self.filter_queryset(products_qs)
-        paginated = self.paginate_queryset(filtered_products)
-        products_data = ProductListSerializer(paginated, many=True).data
+        # Футер
+        footer = {
+            "address": "ул. Примерная, 12",
+            "email": "mochamuse@gmail.com",
+            "phone": "+996 555 123456",
+            "social": {
+                "instagram": "https://instagram.com",
+                "facebook": "https://facebook.com"
+            }
+        }
 
         return Response({
-            "top_banner": BannerListSerializer(top_banner, many=True).data if top_banner else None,
+            "top_banner": top_banner_data,
+            "best_sellers": best_sellers_data,
+            "about_coffee": about_coffee,
+            "quote": quote,
             "categories": categories_data,
-            "products": products_data,
-            "pagination": self.get_paginated_response(products_data).data if paginated else None
+            "footer": footer
         })
+
 
 
 class ProductListAPIView(generics.ListAPIView):
@@ -49,7 +67,7 @@ class ProductListAPIView(generics.ListAPIView):
     search_fields = ['title', 'description']
     ordering_fields = ['price', 'title', 'id']
 
-
+#Детальная страница
 class ProductDetailAPIView(generics.RetrieveAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductDetailSerializer

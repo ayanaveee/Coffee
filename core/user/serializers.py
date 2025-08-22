@@ -2,6 +2,7 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import User, OTP
+from .services import generate_otp_code
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
@@ -25,6 +26,12 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             last_name=validated_data.get('last_name', ''),
             is_2fa_enabled=validated_data.get('is_2fa_enabled', False)
         )
+
+        if user.is_2fa_enabled:
+            otp_code = generate_otp_code()
+            OTP.objects.create(user=user, code=otp_code)
+            print(f"OTP для {user.email}: {otp_code}")
+
         return user
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -33,8 +40,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ('id', 'email', 'first_name', 'last_name', 'is_2fa_enabled')
         read_only_fields = ('email',)
 
-class OTPSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OTP
-        fields = ('user', 'code')
-        read_only_fields = ('user',)
+
+class OTPVerifySerializer(serializers.Serializer):
+    otp = serializers.CharField(required=True, help_text="Введите 6-значный код OTP")
+

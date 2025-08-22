@@ -2,7 +2,9 @@ from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from django.contrib.auth import login
 from .models import User, OTP
-from .serializers import UserRegisterSerializer, UserProfileSerializer, OTPSerializer
+from .serializers import UserRegisterSerializer, UserProfileSerializer, OTPVerifySerializer
+from drf_yasg.utils import swagger_auto_schema
+
 
 class UserRegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -17,14 +19,16 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 class OTPVerifyView(generics.GenericAPIView):
+    serializer_class = OTPVerifySerializer
     permission_classes = [permissions.AllowAny]
 
+    @swagger_auto_schema(request_body=OTPVerifySerializer)
     def post(self, request, user_id):
-        user = generics.get_object_or_404(User, id=user_id)
-        otp_code = request.data.get('otp')
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if not otp_code:
-            return Response({'detail': 'OTP не передан'}, status=status.HTTP_400_BAD_REQUEST)
+        user = generics.get_object_or_404(User, id=user_id)
+        otp_code = serializer.validated_data['otp']
 
         otp = OTP.objects.filter(user=user, code=otp_code).last()
         if otp:

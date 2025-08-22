@@ -29,6 +29,7 @@ class Product(models.Model):
     price = models.DecimalField("Цена", max_digits=10, decimal_places=2)
     new_price = models.DecimalField("Цена со скидкой", max_digits=10, decimal_places=2, null=True, blank=True)
     rating = models.DecimalField("Рейтинг", max_digits=3, decimal_places=1, default=0.0)
+    is_best_seller = models.BooleanField("Бестселлер", default=False)
 
     class Meta:
         verbose_name = "Товар"

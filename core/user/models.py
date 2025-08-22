@@ -7,8 +7,8 @@ class MyUserRoleEnum(TextChoices):
     MANAGER = 'admin', 'Админ'
 
 class MyUserManager(BaseUserManager):
-    def create_user(self, username, email, password=None, role=MyUserRoleEnum.STANDARD_USER, **extra_fields):
-        user = self.model(username=username, email=email, role=role, **extra_fields)
+    def create_user(self, email, password=None, role=MyUserRoleEnum.STANDARD_USER, **extra_fields):
+        user = self.model( email=email, role=role, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
