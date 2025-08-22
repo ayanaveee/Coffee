@@ -4,15 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fa6c0e3a-05ce-47a9-b0e3-5e852f2ee281" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/core/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/core/db.sqlite3" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/main/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/main/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/main/serializers.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/main/serializers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/main/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/main/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/user/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/user/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/user/serializers.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/user/serializers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/user/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/user/views.py" afterDir="false" />
-    </list>
+    <list default="true" id="fa6c0e3a-05ce-47a9-b0e3-5e852f2ee281" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -102,7 +94,7 @@
       <workItem from="1755703821929" duration="211000" />
       <workItem from="1755704082742" duration="807000" />
       <workItem from="1755755402844" duration="30022000" />
-      <workItem from="1755874306443" duration="5346000" />
+      <workItem from="1755874306443" duration="5732000" />
     </task>
     <servers />
   </component>
