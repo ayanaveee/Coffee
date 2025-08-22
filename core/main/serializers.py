@@ -82,28 +82,37 @@ class OrderItemSerializer(serializers.ModelSerializer):
         model = OrderItems
         fields = ["id", "product", "quantity"]
 
-#
-class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True, read_only=True)
-    transaction_id = serializers.CharField(read_only=True)
-    payment_method = serializers.CharField(read_only=True)
-    pickup_at = serializers.DateTimeField(read_only=True)
-    voucher_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+class OrderPaySerializer(serializers.Serializer):
+    payment_method = serializers.ChoiceField(choices=["Card", "MBank", "Cash"])
 
-    class Meta:
-        model = Order
-        fields = [
-            "id",
-            "transaction_id",
-            "total_price",
-            "voucher_amount",
-            "payment_method",
-            "pickup_at",
-            "status",
-            "created_at",
-            "items"
-        ]
+    # --- для карты ---
+    card_number = serializers.CharField(required=False, min_length=16, max_length=16)
+    card_name = serializers.CharField(required=False, max_length=100)
+    card_expiry = serializers.CharField(required=False, max_length=5)  # MM/YY
+    card_cvv = serializers.CharField(required=False, min_length=3, max_length=4)
 
+    # --- для MBank ---
+    phone_number = serializers.CharField(required=False, max_length=15)
+    otp = serializers.CharField(required=False, max_length=6)
+
+    def validate(self, data):
+        method = data.get("payment_method")
+
+        if method == "Card":
+            required_fields = ["card_number", "card_name", "card_expiry", "card_cvv"]
+            for field in required_fields:
+                if not data.get(field):
+                    raise serializers.ValidationError({field: "Это поле обязательно для оплаты картой"})
+
+        elif method == "MBank":
+            if not data.get("phone_number"):
+                raise serializers.ValidationError({"phone_number": "Укажите номер телефона для MBank"})
+
+        elif method == "Cash":
+            # никаких доп.полей не нужно
+            pass
+
+        return data
 
 #Заказ (вложенные позиции с суммой)
 class OrderItemsNestedSerializer(serializers.ModelSerializer):

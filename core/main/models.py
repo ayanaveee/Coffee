@@ -104,37 +104,47 @@ class Order(models.Model):
         ("В обработке", "В обработке"),
         ("Доставлен", "Доставлен"),
     ]
+    PAYMENT_METHODS = [
+        ("Card", "Карта"),
+        ("Cash", "Наличные"),
+        ("Online", "Онлайн-платёж"),
+    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders")
     total_price = models.DecimalField("Общая сумма", max_digits=10, decimal_places=2)
     status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default="Создан")
     created_at = models.DateTimeField("Дата создания", auto_now_add=True)
 
-    transaction_id = models.CharField("ID транзакции", max_length=20, unique=True, null=True, blank=True, editable=False)
-    payment_method = models.CharField("Метод оплаты", max_length=30, null=True, blank=True)
-    voucher_amount = models.DecimalField("Скидка", max_digits=10, decimal_places=2, default=0)
-    pickup_at = models.DateTimeField("Время самовывоза", null=True, blank=True)
+    transaction_id = models.CharField("ID транзакции", max_length=50, unique=True, null=True, blank=True)
+    payment_method = models.CharField("Метод оплаты", max_length=20, choices=PAYMENT_METHODS, null=True, blank=True)
+
+    # --- поля для имитации оплаты ---
+    card_number = models.CharField("Номер карты", max_length=16, null=True, blank=True)
+    card_name = models.CharField("Имя на карте", max_length=100, null=True, blank=True)
+    card_expiry = models.CharField("Срок действия (MM/YY)", max_length=5, null=True, blank=True)
+    card_cvv = models.CharField("CVV", max_length=4, null=True, blank=True)
+
+    phone_number = models.CharField("Телефон (для MBank)", max_length=15, null=True, blank=True)
+
+    confirm_code = models.CharField("Код подтверждения", max_length=6, null=True, blank=True)
+    is_confirmed = models.BooleanField("Оплата подтверждена", default=False)
 
     def ensure_transaction_id(self):
         if not self.transaction_id:
             alphabet = string.ascii_uppercase + string.digits
-            self.transaction_id = "D" + ''.join(secrets.choice(alphabet) for _ in range(12))
+            self.transaction_id = "T" + ''.join(secrets.choice(alphabet) for _ in range(12))
 
     def save(self, *args, **kwargs):
         self.ensure_transaction_id()
         super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Заказ #{self.pk} - {self.status}"
 
     class Meta:
         verbose_name = "Заказ"
         verbose_name_plural = "Заказы"
         ordering = ["-created_at"]
 
-    def __str__(self):
-        return f"Заказ #{self.pk} - {self.status}"
-
-    def update_total(self):
-        total = sum(item.get_subtotal() for item in self.items.all())
-        self.total_price = total
-        self.save()
 
 
 class OrderItems(models.Model):

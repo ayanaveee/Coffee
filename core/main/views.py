@@ -1,5 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
+import random
+import uuid
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
@@ -156,22 +158,85 @@ class OrderDetailAPIView(generics.RetrieveAPIView):
         return Order.objects.filter(user=self.request.user)
 
 
-class PayOrderAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+class OrderPaymentView(APIView):
+    """
+    Имитация оплаты (карта или MBank).
+    """
 
-    def post(self, request, order_id):
-        order = get_object_or_404(Order, id=order_id, user=request.user)
+    def post(self, request, pk):
+        try:
+            order = Order.objects.get(pk=pk)
+        except Order.DoesNotExist:
+            return Response({"error": "Заказ не найден"}, status=status.HTTP_404_NOT_FOUND)
 
-        if order.status == "Оплачен":
-            return Response({"detail": "Заказ уже оплачен"}, status=status.HTTP_200_OK)
+        serializer = OrderPaySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        order.transaction_id = "D" + ''.join(secrets.choice(alphabet) for _ in range(12))
-        order.status = "Оплачен"
-        order.save()
+        payment_method = serializer.validated_data["payment_method"]
 
-        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+        # --- ОПЛАТА КАРТОЙ ---
+        if payment_method == "Card":
+            card_number = serializer.validated_data["card_number"]
 
+            # Фейковая проверка карты (например, VISA = 4****)
+            if card_number.startswith("4"):
+                order.transaction_id = str(uuid.uuid4())[:12]  # генерим ID транзакции
+                order.status = "Оплачен"
+                order.payment_method = "Card"
+                order.save()
+                return Response(
+                    {
+                        "message": "Оплата картой прошла успешно ✅",
+                        "transaction_id": order.transaction_id
+                    },
+                    status=200
+                )
+            else:
+                return Response({"error": "Оплата отклонена банком ❌"}, status=400)
+        elif payment_method == "Cash":
+            order.status = "Ожидает оплаты"
+            order.payment_method = "Cash"
+            order.save()
+            return Response({"message": "Заказ создан. Оплата наличными при получении 💵"}, status=200)
+
+
+        # --- ОПЛАТА ЧЕРЕЗ MBANK ---
+        elif payment_method == "MBank":
+            phone = serializer.validated_data["phone_number"]
+            otp = serializer.validated_data.get("otp")
+
+            if not otp:
+                # Генерация OTP (фейковая отправка)
+                generated_otp = str(random.randint(1000, 9999))
+                order.confirm_code = generated_otp
+                order.status = "Ожидает подтверждения"
+                order.payment_method = "MBank"
+                order.save()
+
+                return Response(
+                    {
+                        "message": f"OTP отправлен на {phone}",
+                        "test_otp": generated_otp  # ⚠️ в реале бы не отдавали клиенту
+                    },
+                    status=200
+                )
+
+            # Проверка OTP
+            if otp == order.confirm_code:
+                order.transaction_id = str(uuid.uuid4())[:12]
+                order.status = "Оплачен"
+                order.save()
+                return Response(
+                    {
+                        "message": "Оплата через MBank подтверждена ✅",
+                        "transaction_id": order.transaction_id
+                    },
+                    status=200
+                )
+            else:
+                return Response({"error": "Неверный OTP ❌"}, status=400)
+
+        return Response({"error": "Неверный метод оплаты"}, status=400)
 
 class OrderReceiptAPIView(APIView):
     permission_classes = [IsAuthenticated]
