@@ -157,33 +157,17 @@ class OrderDetailAPIView(generics.RetrieveAPIView):
 
 
 class PayOrderAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, id):
-        order = get_object_or_404(Order, id=id, user=request.user)
+    def post(self, request, order_id):
+        order = get_object_or_404(Order, id=order_id, user=request.user)
 
-        if order.status == "paid":
+        if order.status == "Оплачен":
             return Response({"detail": "Заказ уже оплачен"}, status=status.HTTP_200_OK)
 
-        payment_method = request.data.get("payment_method")
-        voucher_amount = request.data.get("voucher_amount", 0)
-        pickup_at_raw = request.data.get("pickup_at")
-
-        try:
-            voucher_amount = float(voucher_amount or 0)
-        except ValueError:
-            return Response({"voucher_amount": "Должно быть числом"}, status=400)
-
-        pickup_at = None
-        if pickup_at_raw:
-            pickup_at = parse_datetime(pickup_at_raw)
-            if pickup_at is None:
-                return Response({"pickup_at": "Формат должен быть ISO-8601"}, status=400)
-
-        order.payment_method = payment_method or order.payment_method or "Card"
-        order.voucher_amount = voucher_amount
-        order.pickup_at = pickup_at or order.pickup_at
-        order.status = "paid"
+        alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        order.transaction_id = "D" + ''.join(secrets.choice(alphabet) for _ in range(12))
+        order.status = "Оплачен"
         order.save()
 
         return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
