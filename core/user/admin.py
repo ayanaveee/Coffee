@@ -1,18 +1,16 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
-from .models import User
+from django.contrib.auth.admin import UserAdmin  as BaseUserAdmin
+from .models import User, OTP, UserProfile
 
-class MyUserAdmin(UserAdmin):
-    model = User
-    list_display = ('email', 'username', 'phone_number', 'role', 'is_admin')
-    list_filter = ('is_admin', 'role')
-    search_fields = ('email', 'username', 'phone_number')
+class MyUserAdmin(BaseUserAdmin):
+    list_display = ('email', 'username', 'is_admin')
+    search_fields = ('email', 'username')
     ordering = ('email',)
-
+    filter_horizontal = ()
+    list_filter = ()
     fieldsets = (
         (None, {'fields': ('email', 'username', 'password')}),
-        ('Personal info', {'fields': ('phone_number', 'avatar', 'address', 'role')}),
-        ('Permissions', {'fields': ('is_admin',)}),
+        ('Permissions', {'fields': ('is_admin', 'role')}),
     )
 
     add_fieldsets = (
@@ -24,4 +22,11 @@ class MyUserAdmin(UserAdmin):
 
     filter_horizontal = ()
 
+class OTPAdmin(admin.ModelAdmin):
+    list_display = ('user', 'code', 'created_at')
+    search_fields = ('user__email', 'code')
+    ordering = ('-created_at',)
+
+admin.site.register(OTP, OTPAdmin)
 admin.site.register(User, MyUserAdmin)
+admin.site.register(UserProfile)

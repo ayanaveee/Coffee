@@ -55,3 +55,25 @@ class User(AbstractBaseUser):
     class Meta:
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
+
+class OTP(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, default=1, verbose_name='Пользователя')
+    code = models.CharField(max_length=6, verbose_name='Код')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+
+    class Meta:
+        verbose_name = "Одноразовый код"
+        verbose_name_plural = "Одноразовые коды"
+
+    def __str__(self):
+        return f"{self.user.username} - {self.code}"
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+
+    def __str__(self):
+        return self.user.username
+
+    class Meta:
+        verbose_name = 'Профиль пользователя'
+        verbose_name_plural = 'Профили пользователей'

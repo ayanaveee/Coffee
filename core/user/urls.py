@@ -1,8 +1,8 @@
-from django.contrib import admin
 from django.urls import path
-from . import views
-from .views import UserRegisterView
+from .views import UserRegisterView, UserProfileView, OTPVerifyView
 
 urlpatterns = [
-    path('user/register/', UserRegisterView.as_view()),
+    path('register/', UserRegisterView.as_view(), name='user_register'),
+    path('profile/', UserProfileView.as_view(), name='user_profile'),
+    path('otp-verify/<int:user_id>/', OTPVerifyView.as_view(), name='otp_verify'),
 ]
