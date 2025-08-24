@@ -37,8 +37,10 @@ class BasketAdmin(admin.ModelAdmin):
     ordering = ("id",)
 
     def total_amount(self, obj):
-        return sum(item.product.price * item.quantity for item in obj.basketitems_set.all())
+        return sum(item.product.price * item.quantity for item in obj.items.all())
+
     total_amount.short_description = "Total"
+
 
 @admin.register(BasketItems)
 class BasketItemsAdmin(admin.ModelAdmin):
