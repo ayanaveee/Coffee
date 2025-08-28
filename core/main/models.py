@@ -248,15 +248,5 @@ class PickupPoint(models.Model):
     def __str__(self):
         return self.title
 
-class PickupPoint(models.Model):
-    title = models.CharField("Название точки", max_length=200)
-    address = models.CharField("Адрес", max_length=255)
-    phone = models.CharField("Телефон", max_length=20, blank=True)
 
-    class Meta:
-        verbose_name = "Точка самовывоза"
-        verbose_name_plural = "Точки самовывоза"
-
-    def __str__(self):
-        return self.title
 
