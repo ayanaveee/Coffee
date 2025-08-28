@@ -26,11 +26,8 @@ class IndexAPIView(generics.GenericAPIView):
         best_sellers = Product.objects.filter(is_best_seller=True)[:5]
         best_sellers_data = ProductListSerializer(best_sellers, many=True).data
 
-        # Информация о кофейне
-        about_coffee = {
-            "image": "/media/about_coffee.jpg",
-            "text": "Добро пожаловать в нашу кофейню! Здесь варят лучший кофе."
-        }
+        coffee_shop = CoffeeShop.objects.first()
+        coffee_shop_data = CoffeeShopSerializer(coffee_shop).data if coffee_shop else None
 
         # Цитата
         quote = "Жизнь слишком коротка, чтобы пить плохой кофе ☕️"
@@ -53,7 +50,7 @@ class IndexAPIView(generics.GenericAPIView):
         return Response({
             "top_banner": top_banner_data,
             "best_sellers": best_sellers_data,
-            "about_coffee": about_coffee,
+            "coffee_shop": coffee_shop_data,
             "quote": quote,
             "categories": categories_data,
             "footer": footer

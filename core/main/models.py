@@ -61,6 +61,14 @@ class Banner(models.Model):
     def __str__(self):
         return f"{self.title} ({self.location})"
 
+class CoffeeShop(models.Model):
+    name = models.CharField(max_length=255, verbose_name="Название кофейни")
+    banner = models.ImageField(upload_to="coffee_banners/", verbose_name="Баннер")
+    description = models.TextField(blank=True, null=True, verbose_name="Описание")
+
+    def __str__(self):
+        return self.name
+
 
 # ---------------- КОРЗИНА ----------------
 class Basket(models.Model):

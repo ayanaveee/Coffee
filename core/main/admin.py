@@ -8,6 +8,15 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields = ("title",)
     ordering = ("id",)
 
+
+# ---------------- COFFEE SHOP ----------------
+@admin.register(CoffeeShop)
+class CoffeeShopAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "banner")
+    search_fields = ("name",)
+    ordering = ("id",)
+
+
 # ---------------- PRODUCT ----------------
 class ProductIngredientInline(admin.TabularInline):
     model = ProductIngredient

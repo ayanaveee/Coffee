@@ -33,6 +33,13 @@ class BannerListSerializer(serializers.ModelSerializer):
         fields = ["id", "title", "image", "location"]
 
 
+class CoffeeShopSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CoffeeShop
+        fields = ["id", "name", "banner", "description"]
+
+
+
 #Корзина
 class BasketItemsSerializer(serializers.ModelSerializer):
     product = ProductListSerializer(read_only=True)
