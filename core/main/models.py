@@ -5,7 +5,6 @@ import string
 
 User = get_user_model()
 
-# ---------------- КАТЕГОРИЯ ----------------
 class Category(models.Model):
     title = models.CharField("Название категории", max_length=100)
 
@@ -18,11 +17,8 @@ class Category(models.Model):
         return self.title
 
 
-# ---------------- ТОВАР ----------------
 class Product(models.Model):
-    category = models.ForeignKey(
-        Category, on_delete=models.CASCADE, related_name="products", verbose_name="Категория"
-    )
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="products", verbose_name="Категория")
     title = models.CharField("Название", max_length=200)
     description = models.TextField("Описание", blank=True)
     cover = models.ImageField("Обложка", upload_to="product_cover/", blank=True, null=True)
@@ -43,7 +39,6 @@ class Product(models.Model):
         return self.new_price or self.price
 
 
-# ---------------- БАННЕР ----------------
 class Banner(models.Model):
     LOCATION_CHOICES = [
         ("index_head", "Баннер сверху"),
@@ -73,7 +68,7 @@ class CoffeeShop(models.Model):
         verbose_name = "О кофейне"
         verbose_name_plural = "О кофейнях"
 
-# ---------------- КОРЗИНА ----------------
+
 class Basket(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="basket")
     total_price = models.DecimalField("Общая сумма", max_digits=10, decimal_places=2, default=0.00)
@@ -107,7 +102,6 @@ class BasketItems(models.Model):
         return f"{self.product.title} × {self.quantity}"
 
 
-# ---------------- ЗАКАЗ ----------------
 class Order(models.Model):
     STATUS_CHOICES = [
         ("Создан", "Создан"),
@@ -128,7 +122,6 @@ class Order(models.Model):
     transaction_id = models.CharField("ID транзакции", max_length=50, unique=True, null=True, blank=True)
     payment_method = models.CharField("Метод оплаты", max_length=20, choices=PAYMENT_METHODS, null=True, blank=True)
 
-    # --- поля для имитации оплаты ---
     card_number = models.CharField("Номер карты", max_length=16, null=True, blank=True)
     card_name = models.CharField("Имя на карте", max_length=100, null=True, blank=True)
     card_expiry = models.CharField("Срок действия (MM/YY)", max_length=5, null=True, blank=True)
@@ -174,7 +167,6 @@ class OrderItems(models.Model):
         return f"{self.product.title} × {self.quantity}"
 
 
-# ---------------- АКЦИИ ----------------
 class Promotion(models.Model):
     title = models.CharField("Название акции", max_length=200)
     description = models.TextField("Описание", blank=True)
@@ -191,7 +183,6 @@ class Promotion(models.Model):
         return f"{self.title} ({self.discount_percent}%)"
 
 
-# ---------------- ОТЗЫВЫ ----------------
 class Review(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews")
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviews")
@@ -208,7 +199,6 @@ class Review(models.Model):
         return f"{self.product.title} - {self.rating}⭐"
 
 
-# ---------------- ИНГРЕДИЕНТЫ ----------------
 class Ingredient(models.Model):
     title = models.CharField("Название", max_length=100)
     is_allergen = models.BooleanField("Аллерген", default=False)
@@ -234,7 +224,6 @@ class ProductIngredient(models.Model):
         return f"{self.ingredient.title} для {self.product.title}"
 
 
-# ---------------- СКЛАД ----------------
 class Stock(models.Model):
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name="stock")
     quantity = models.PositiveIntegerField("Количество на складе", default=0)
@@ -247,7 +236,6 @@ class Stock(models.Model):
         return f"{self.product.title} - {self.quantity} шт."
 
 
-# ---------------- ТОЧКИ САМОВЫВОЗА ----------------
 class PickupPoint(models.Model):
     title = models.CharField("Название точки", max_length=200)
     address = models.CharField("Адрес", max_length=255)
@@ -260,7 +248,6 @@ class PickupPoint(models.Model):
     def __str__(self):
         return self.title
 
-# ---------------- ТОЧКИ САМОВЫВОЗА ----------------
 class PickupPoint(models.Model):
     title = models.CharField("Название точки", max_length=200)
     address = models.CharField("Адрес", max_length=255)

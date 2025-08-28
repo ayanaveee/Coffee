@@ -24,7 +24,7 @@ class User(AbstractBaseUser):
     username = models.CharField(max_length=30, verbose_name='Имя пользователя')
     email = models.EmailField(unique=True, verbose_name='Почта')
     phone_number = models.CharField(max_length=15, null=True, blank=True, verbose_name='Номер телефона')
-    avatar = models.ImageField(upload_to='media/user_avatar/', null=True, blank=True, verbose_name='Аватарка')
+    avatar = models.ImageField(upload_to='user_avatar/', null=True, blank=True, verbose_name='Аватарка')
     address = models.CharField(max_length=150, null=True, blank=True, verbose_name='Адрес')
     first_name = models.CharField(max_length=30, null=True, blank=True, verbose_name='Имя')
     last_name = models.CharField(max_length=30, null=True, blank=True, verbose_name='Фамилия')

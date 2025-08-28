@@ -13,30 +13,24 @@ from .filters import ProductFilter
 from .models import *
 from .serializers import *
 
-#Главная страница
 class IndexAPIView(generics.GenericAPIView):
     filter_backends = [DjangoFilterBackend]
 
     def get(self, request):
-        # Топ-баннеры
         top_banner = Banner.objects.filter(location="index_head")
         top_banner_data = BannerListSerializer(top_banner, many=True).data
 
-        # Бестселлеры (топ-5 продуктов)
         best_sellers = Product.objects.filter(is_best_seller=True)[:5]
         best_sellers_data = ProductListSerializer(best_sellers, many=True).data
 
         coffee_shop = CoffeeShop.objects.first()
         coffee_shop_data = CoffeeShopSerializer(coffee_shop).data if coffee_shop else None
 
-        # Цитата
         quote = "Жизнь слишком коротка, чтобы пить плохой кофе ☕️"
 
-        # Категории товаров
         categories = Category.objects.all()
         categories_data = CategorySerializer(categories, many=True).data
 
-        # Футер
         footer = {
             "address": "ул. Примерная, 12",
             "email": "mochamuse@gmail.com",
@@ -57,7 +51,6 @@ class IndexAPIView(generics.GenericAPIView):
         })
 
 
-
 class ProductListAPIView(generics.ListAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductListSerializer
@@ -66,7 +59,7 @@ class ProductListAPIView(generics.ListAPIView):
     search_fields = ['title', 'description']
     ordering_fields = ['price', 'title', 'id']
 
-#Детальная страница
+
 class ProductDetailAPIView(generics.RetrieveAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductDetailSerializer
@@ -156,10 +149,6 @@ class OrderDetailAPIView(generics.RetrieveAPIView):
 
 
 class OrderPaymentView(APIView):
-    """
-    Имитация оплаты (карта или MBank).
-    """
-
     def post(self, request, pk):
         try:
             order = Order.objects.get(pk=pk)
@@ -171,11 +160,9 @@ class OrderPaymentView(APIView):
 
         payment_method = serializer.validated_data["payment_method"]
 
-        # --- ОПЛАТА КАРТОЙ ---
         if payment_method == "Card":
             card_number = serializer.validated_data["card_number"]
 
-            # Фейковая проверка карты (например, VISA = 4****)
             if card_number.startswith("4"):
                 order.transaction_id = str(uuid.uuid4())[:12]  # генерим ID транзакции
                 order.status = "Оплачен"
@@ -197,13 +184,11 @@ class OrderPaymentView(APIView):
             return Response({"message": "Заказ создан. Оплата наличными при получении 💵"}, status=200)
 
 
-        # --- ОПЛАТА ЧЕРЕЗ MBANK ---
         elif payment_method == "MBank":
             phone = serializer.validated_data["phone_number"]
             otp = serializer.validated_data.get("otp")
 
             if not otp:
-                # Генерация OTP (фейковая отправка)
                 generated_otp = str(random.randint(1000, 9999))
                 order.confirm_code = generated_otp
                 order.status = "Ожидает подтверждения"
@@ -218,7 +203,6 @@ class OrderPaymentView(APIView):
                     status=200
                 )
 
-            # Проверка OTP
             if otp == order.confirm_code:
                 order.transaction_id = str(uuid.uuid4())[:12]
                 order.status = "Оплачен"
