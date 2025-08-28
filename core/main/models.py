@@ -69,6 +69,9 @@ class CoffeeShop(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        verbose_name = "О кофейне"
+        verbose_name_plural = "О кофейнях"
 
 # ---------------- КОРЗИНА ----------------
 class Basket(models.Model):
